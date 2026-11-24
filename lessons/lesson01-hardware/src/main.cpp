@@ -1,45 +1,69 @@
 
 #include <Arduino.h>
 #include <M5Cardputer.h>
+#include <stdlib.h>
 
 void setup()
 {
-  // 1. Cardputer 하드웨어 초기화
+
+  // 1. Cardputer 및 LCD 초기화
   auto cfg = M5.config();
   M5Cardputer.begin(cfg, true);
 
-  // 2. 디스플레이 초기화
   auto &lcd = M5Cardputer.Display;
-
   lcd.setRotation(1);
   lcd.fillScreen(BLACK);
   lcd.setTextColor(WHITE);
-  lcd.setTextSize(2);
+  lcd.setTextSize(1);
   lcd.setCursor(5, 5);
 
-  // 3. 제목 출력
-  lcd.println("CARDPUTER LAB");
+  lcd.println("=== MEMORY LAB ===");
   lcd.println();
 
-  // 4. 하드웨어 정보 조회
-  uint32_t cpu = ESP.getCpuFreqMHz();
-  uint32_t heap = ESP.getFreeHeap();
-  uint32_t flash = ESP.getFlashChipSize();
+  // 2. 메모리 할당 전
+  uint32_t before = ESP.getFreeHeap();
 
-  // 5. 결과를 Cardputer 화면에 출력
-  lcd.setTextSize(1);
+  // 3. RAM 32KB 할당
+  const size_t SIZE = 32 * 1024;
+  uint8_t *data = (uint8_t *)malloc(SIZE);
 
-  lcd.printf("CPU: %lu MHz\n",
-             (unsigned long)cpu);
+  // 4. 할당 성공 여부 확인
+  if (data == nullptr)
+  {
+    lcd.println("Allocation FAILED!");
+    return;
+  }
 
-  lcd.printf("Free Heap: %lu KB\n",
-             (unsigned long)(heap / 1024));
+  // 실제 할당된 영역에 값 기록
+  data[0] = 10;
+  data[SIZE - 1] = 20;
 
-  lcd.printf("Flash: %lu MB\n",
-             (unsigned long)(flash / 1024 / 1024));
+  // 5. 메모리 할당 후
+  uint32_t after = ESP.getFreeHeap();
+
+  // 6. 메모리 반환
+  free(data);
+  data = nullptr;
+
+  // 7. 반환 후 여유 메모리 측정
+  uint32_t restored = ESP.getFreeHeap();
+
+  // 8. LCD에 결과 표시
+  lcd.printf("Before : %lu KB\n",
+             (unsigned long)(before / 1024));
+
+  lcd.printf("After  : %lu KB\n",
+             (unsigned long)(after / 1024));
+
+  lcd.printf("Freed  : %lu KB\n",
+             (unsigned long)(restored / 1024));
 
   lcd.println();
-  lcd.println("Program is running!");
+
+  lcd.printf("Allocated: %u KB\n",
+             (unsigned)(SIZE / 1024));
+
+  lcd.println("Experiment complete!");
 }
 
 void loop()
